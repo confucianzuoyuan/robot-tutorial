@@ -6,7 +6,8 @@
 #import "@preview/codly:1.3.0": *
 #import "@preview/codly-languages:0.1.1": *
 #import "@preview/mannot:0.3.1": *
-#import "@preview/cetz:0.4.2"
+#import "@preview/cetz:0.5.2"
+#import "@preview/cetz-plot:0.1.4": chart, plot
 #import "@preview/algo:0.3.6": algo, code, comment, d, i
 #import "@preview/fletcher:0.5.8" as fletcher
 #import "@preview/suiji:0.5.0" as suiji
@@ -58,6 +59,191 @@
 #let colblue(x) = text(fill: blue, $#x$)
 
 #set list(marker: ([•], [‣]))
+
+#part("现代机器人状态估计")
+
+#chapter("概论", image: image("./orange2.jpg"), l: "robot-introduction")
+
+#tip(title: [机器人的状态估计要解决的问题])[
+  我的机器人现在在哪里？
+]
+
+- 只用GPS？$arrow.r.long$在室内、隧道、城市峡谷中无法工作
+- 只用轮式编码器？$arrow.r.long$轮子打滑瞬间误差累积
+- 只用IMU？$arrow.r.long$积分后每分钟发散数百米
+
+答案：对多种传感器的数据进行概率性的融合的算法——状态估计！
+
+#figure(
+  image("2.png"),
+  caption: [取各传感器之长，以其它传感器补其之短——这便是融合的本质],
+)
+
+#figure(
+  image("3.png"),
+  caption: [取各传感器之长，以其它传感器补其之短——这便是融合的本质],
+)
+
+#figure(
+  image("4.png"),
+  caption: [滤波器和平滑器],
+)
+
+#tip(title: [滤波器 vs. 平滑器])[
+  #table(
+    columns: 2,
+    [滤波器（ESKF等）], [平滑器（因子图等）],
+    [仅适用截至当前时刻的测量数据], [重复利用过去的测量值进行全局优化],
+    [固定内存占用，固定计算量], [内存和计算量随着时间线性增长],
+    [适用于实时控制输出], [适用于回环检测、高精度地图生成],
+    [实际案例：无人机姿态控制、自动驾驶里程计], [实际案例：SLAM、SfM、离线后处理],
+  )
+]
+
+在当前的实际系统中，
+
+滤波器（ESKF）$stretch(->)^"里程计（odometry）"$平滑器（因子图）
+
+快速里程计为SLAM提供初始值的双层结构已成为标准。
+
+#tip(title: [为何选择ESKF])[
+  误差状态卡尔曼滤波（ESKF）是实时IMU融合的事实标准。
+
+  开源参考实现（ESKF/iEKF）：
+
+  - OpenVINS（特拉华大学，2020）
+    - 视觉-惯性里程计（Visual-Inertial Odometry）
+    - MSCKF+ESKF误差状态（error-state）
+  - ROVIO（苏黎世联邦理工学院，2017）
+    - VIO
+    - 流形上的IEKF（IEKF on manifold）
+  - FAST-LIO2（香港大学MARS实验室，2022）
+    - LiDAR-IMU里程计
+    - $"SO"(3)$上的IEKF
+  - FAST-LIVO2（香港大学MARS实验室，2024）
+    - 激光雷达+视觉+惯性（LiDAR+Visual+Inertial）
+    - IEKF
+
+  ESKF相较于UKF的优势：
+
+  - 无需Sigma点，计算量相同或者更少
+  - 四元数符号问题结构性消除
+  - 针对IMU积分优化的设计
+  - 大量参考代码
+
+  相关领域（因子图+预积分）：
+
+  - VINS-Mono
+  - ORB-SLAM3 VI
+  - LIO-SAM
+  - Kalibr（批处理）
+]
+
+#figure(
+  image("5.png"),
+  caption: [由于误差状态$delta x$始终被保证很小，因此可以安全地应用线性卡尔曼滤波],
+)
+
+#chapter("贝叶斯滤波器，高斯分布", image: image("./orange2.jpg"), l: "bayes-filter-gaussian")
+
+任何单一传感器都不够充分。需要一种能够以概率方式融合的算法。
+
+#tip(title: [我们所讨论的一切都具有不确定性])[
+  - 状态$x$：想要知道的量（位置、速度、偏置等）
+  - 测量值$z$：传感器提供的量
+  - 两者均非确定值，而是以概率分布的形式处理
+]
+
+#tip(title: [数学符号])[
+  - 对$x$的信念：$p(x)$
+  - 观测到$z$之后对$x$的信念：$p(x|z)$
+]
+
+#tip(title: [概率的两种解释])[
+  - 频率学派："无限次抛掷硬币，正面比例趋近于0.5"
+  - 贝叶斯学派："我认为这枚硬币出现正面的概率是0.5"
+
+  在机器人的状态估计中呢？自然是贝叶斯学派。"当前我的机器人位置"是没有办法无限重复的。我们处理的是仅有一次的实现（这台机器人、这个时刻）的信念。
+]
+
+#tip(title: [条件概率])[
+  $
+    p(A|B) = p(A,B)/p(B)
+  $
+
+  - "已知$B$发生时，$A$的概率"
+  - 将联合概率$p(A, B)$按$B$的截面进行归一化
+  - 从这个定义出发，贝叶斯定理和全概率公式均可推导得出
+]
+
+#tip(title: [贝叶斯定理])[
+  $
+    because p(A,B) = p(A|B)p(B) = p(B|A)p(A)
+    \
+    \
+    therefore p(A|B) = (p(B|A)p(A))/p(B)
+  $
+
+  如果改用状态估计的符号表示
+
+  $
+    p(x|z) = (p(z|x)p(x))/p(z)
+  $
+
+  - $p(x)$：先验——测量前的信念
+  - $p(z|x)$：似然——传感器模型
+  - $p(x|z)$：后验概率——测量后的信念
+  - $p(z)$：归一化常数，实际上可以视为乘法因子
+]
+
+#tip(title: [为什么比例关系就足够了？])[
+  $
+    p(x|z) prop p(z|x)p(x)
+  $
+
+  - $p(z)$不依赖于$x$——其形状不会随着$x$的变化而改变。
+  - 最后将整个分布积分归一化为1，即可自动恢复。
+  - 因此仅从形状来看，先验$times$似然就是后验。
+
+  一句话总结："用测量值对先验信念的合理程度进行加权"
+]
+
+#tip(title: [贝叶斯定理——从工程视角的两个核心要点])[
+  对于从事机器人状态估计的人来说，贝叶斯定理可以概括为两行。
+
+  1. 后验概率是先验概率与观测的加权结合
+
+  $
+    underbrace(p(x|z), "后验概率") prop underbrace(p(z|x), "观测") dot.c underbrace(p(x), "先验概率")
+  $
+
+  当变为高斯分布时，这实际上就是均值的加权和，权重为精度（方差的倒数）。卡尔曼滤波的更新公式：$hat(x)^+ = hat(x)^- + bold(K)(z - bold(H)hat(x)^-)$正是这种形式。
+
+  2. 后验分布将成为下一轮的先验分布（这一点更为重要）
+
+  $
+    p(x_t|z_(1:t)) stretch(->, size: #200%)^"预测" p(x_(t+1)|z_(1:t)) stretch(->, size: #200%)^"更新" p(x_(t+1)|z_(1:t+1))
+  $
+
+  注意：并不是只结合一次，而是以无限递归的方式不断结合。这种递归正是"滤波器"概念的本质——信念随着时间流动！
+]
+
+#tip(title: [为什么偏偏是高斯分布——这是闭式解的选择])[
+  - 中心极限定理：独立噪声之和$arrow.r.long$高斯分布（对实际传感器噪声的良好近似）
+  - 闭合形式：高斯分布相乘仍然是高斯分布
+  - 对线性变换封闭：如果$x tilde cal(N)(mu, Sigma)$，则$A x tilde cal(N)(A mu, A Sigma A^T)$
+  - 只用均值和协方差两个矩就可以描述一个高斯分布——节省内存
+
+  #danger(title: [注意])[
+    高斯分布是能够实现闭式解的一种选择，而不是唯一选择。非高斯问题（多峰分布，严重非线性）$arrow.r.long$粒子滤波是通用解法。本课程限定在高斯框架内，但会明确认识其局限性并加以突破。
+  ]
+]
+
+#tip(title: [1维高斯分布——公式和图示])[
+  $
+    cal(N)(x; mu, sigma^2) = 1/(sqrt(2 pi)sigma)exp(-(x-mu)^2/(2 sigma^2))
+  $
+]
 
 #part("Point-LIO算法")
 
@@ -493,7 +679,6 @@ IMU预积分：
 
 $
   R_(t+upright(d)t) = R_t times exp(markhl(omega_"imu" times upright(d)t, tag: #<vel>))
-  
   #annot(<vel>, "角速度积分得到旋转增量")
 $
 
