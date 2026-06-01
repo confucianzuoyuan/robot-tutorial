@@ -1,0 +1,39 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{tikz}
+\usepackage{ctex}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  font=\footnotesize,
+  node distance=0.4cm,
+  blk/.style={
+    draw,
+    rounded corners,
+    minimum width=8cm,
+    minimum height=0.8cm,
+    align=center
+  }
+]
+  \node[blk, fill=red!10] (a)
+    {一般贝叶斯滤波器（任意分布）};
+
+  \node[blk, fill=orange!12, below=of a] (b)
+    {将分布限制为高斯分布};
+
+  \node[blk, fill=yellow!15, below=of b] (c)
+    {将模型限制为\emph{线性}模型 + 高斯噪声};
+
+  \node[blk, fill=green!12, below=of c] (d)
+    {\textbf{卡尔曼滤波器}};
+
+  \draw[-Stealth] (a) -- (b);
+  \draw[-Stealth] (b) -- (c);
+  \draw[-Stealth] (c) -- (d);
+\end{tikzpicture}
+
+\end{document}

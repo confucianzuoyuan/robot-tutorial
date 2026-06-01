@@ -1,0 +1,47 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{ctex}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows.meta}
+
+\newcommand{\bx}{\bm{x}}
+\newcommand{\bz}{\bm{z}}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  font=\footnotesize,
+  node distance=1.0cm,
+  blk/.style={
+    draw,
+    rounded corners,
+    minimum height=1.0cm,
+    minimum width=3.2cm,
+    align=center
+  }
+]
+  \node[blk, fill=blue!10] (post0)
+    {$k-1$ 时刻后验\\$p(\bx_{k-1} \mid \bz_{1:k-1})$};
+
+  \node[blk, fill=orange!15, right=2.0cm of post0] (pred)
+    {$k$ 时刻先验\\$p(\bx_k \mid \bz_{1:k-1})$};
+
+  \node[blk, fill=blue!10, right=2.0cm of pred] (post)
+    {$k$ 时刻后验\\$p(\bx_k \mid \bz_{1:k})$};
+
+  \draw[-Stealth]
+    (post0) -- node[above]{预测}
+               node[below]{$p(\bx_k \mid \bx_{k-1})$}
+    (pred);
+
+  \draw[-Stealth]
+    (pred) -- node[above]{更新}
+              node[below]{$p(\bz_k \mid \bx_k)$}
+    (post);
+
+\end{tikzpicture}
+
+\end{document}

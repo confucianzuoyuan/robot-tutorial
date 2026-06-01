@@ -1,0 +1,32 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{ctex}
+
+\begin{document}
+
+\begin{tikzpicture}[scale=0.7, transform shape]
+  \begin{scope}[shift={(-4,0)}]
+    \draw[->] (-2.5,0) -- (2.5,0);
+    \draw[->] (0,-2) -- (0,2);
+    \draw[blue, thick] (0,0) ellipse (1.5 and 1.0);
+    \node at (0,-2.3) {$\bm{\Sigma}$ 为对角，且各向同性};
+  \end{scope}
+
+  \begin{scope}[shift={(0,0)}]
+    \draw[->] (-2.5,0) -- (2.5,0);
+    \draw[->] (0,-2) -- (0,2);
+    \draw[blue, thick] (0,0) ellipse (1.8 and 0.7);
+    \node at (0,-2.3) {对角，$x$ 方向更大};
+  \end{scope}
+
+  \begin{scope}[shift={(4,0)}]
+    \draw[->] (-2.5,0) -- (2.5,0);
+    \draw[->] (0,-2) -- (0,2);
+    \draw[blue, thick, rotate=30] (0,0) ellipse (1.8 and 0.7);
+    \node at (0,-2.3) {非对角——存在相关性};
+  \end{scope}
+\end{tikzpicture}
+
+\end{document}

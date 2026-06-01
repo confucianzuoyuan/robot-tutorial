@@ -243,7 +243,156 @@
   $
     cal(N)(x; mu, sigma^2) = 1/(sqrt(2 pi)sigma)exp(-(x-mu)^2/(2 sigma^2))
   $
+
+  #figure(
+    image("normal_curve.pdf"),
+    caption: [1维高斯分布],
+  )
+
+  $sigma$是不确定性宽度，越小则分布越尖锐。
 ]
+
+#tip(title: [多变量高斯分布——协方差决定形状])[
+  $
+    cal(N)(bold(x); bold(mu), bold(Sigma))
+    =
+    1/(sqrt((2 pi)^n |bold(Sigma)|))exp(-1/2(bold(x)-bold(mu))^T bold(Sigma)^(-1) (bold(x)-bold(mu)))
+  $
+
+  #figure(
+    image("multinormal.pdf"),
+    caption: [多变量高斯分布],
+  )
+
+  非对角项（off-diagonal）决定了卡尔曼滤波器的真正力量源自何处。
+]
+
+#tip(title: [高斯分布$times$高斯分布])[
+  两个一维高斯分布$cal(N)(x; mu_1, sigma_1^2), cal(N)(x; mu_2, sigma_2^2)$的乘积仍然是高斯分布：
+
+  $
+           mu & = ( mu_1"/"sigma_1^2 + mu_2"/"sigma_2^2 ) / ( 1"/"sigma_1^2 + 1"/"sigma_2^2 ) \
+    1/sigma^2 & = 1/sigma_1^2 + 1/sigma_2^2
+  $
+
+  - 均值是精度（$=1/sigma$）的加权平均
+  - 方差通过倒数之和进行合并 $arrow.r.long$ 结果总是小于两者中较小的那个值
+  - 即合并两个信息后，不确定性会降低
+]
+
+推导过程如下：
+
+$
+  cal(N)(mu_1, sigma_1^2)cal(N)(mu_2, sigma_2^2) prop exp(-(x-mu_1)^2/(2 sigma_1^2)-(x-mu_2)^2/(2 sigma_2^2))
+$
+
+整理指数项中关于$x$的项：
+
+$
+  -1/2 [ (1/sigma_1^2 + 1/sigma_2^2)x^2 - 2(mu_1/sigma_1^2 + mu_2/sigma_2^2)x + "常数" ]
+$
+
+那么可以看到
+
+- 新的均值：$1/sigma^2 = 1/sigma_1^2 + 1/sigma_2^2$
+- 新的方差：$mu = sigma^2 dot.c (mu_1/sigma_1^2 + mu_2/sigma_2^2)$
+
+可以将$mu$简化为精度加权平均的形式：
+
+$
+  mu = ( mu_1"/"sigma_1^2 + mu_2"/"sigma_2^2 ) / ( 1"/"sigma_1^2 + 1"/"sigma_2^2 )
+$
+
+再看一下公式的含义：
+
+- $sigma_1 arrow.r.long 0$：首次测量完美 -> $mu arrow.r.long mu_1$（直接接受这个值）
+- $sigma_1 arrow.r.long infinity$：首次测量无意义 -> $mu arrow.r.long mu_1$（只适用第二个值）
+- 中间部分则平滑插值
+
+相同的公式如果用卡尔曼滤波器的增益形式重写，则有如下公式
+
+也就是如果我们设
+
+$
+       mu & = mu_1 + K(mu_2 - mu_1) \
+  sigma^2 & = (1-K)sigma_1^2
+$
+
+则有
+
+$
+  K = sigma_1^2 / (sigma_1^2 + sigma_2^2)
+$
+
+这就是一维卡尔曼更新：
+
+- $mu_1, sigma_1^2$：先验
+- $mu_2, sigma_2^2$：测量
+- $K$：*卡尔曼增益*（Kalman gain）——"对测量的信任程度"
+- $mu_2-mu_1$：创新项——测量与预测的差异
+
+
+机器人是时间序列。想要估计时间$k$的状态$x_k$。
+
+有两类信息：
+
+- 运动模型$p(x_k|x_(k-1))$——"从先前的状态如何运动"
+- 测量模型$p(z_k|x_k)$——"在这种状态下，传感器会显示什么"
+
+将贝叶斯定理按照时间顺序展开应用时，会自然分离出来两个阶段。
+
+#tip(title: [贝叶斯滤波器——预测步骤推导])[
+  $
+    p(x_k|z_(1:k-1)) = integral p(x_k|x_(k-1))p(x_(k-1)|z_(1:k-1))upright(d)x_(k-1)
+  $
+
+  - 运动模型$p(x_k|x_(k-1))$将"先前的信念转移到未来"
+  - 测量值尚未到来——因此进行预测（predict）
+  - 结果导致信念扩散（不确定性增加）——和直觉一致
+]
+
+#tip(title: [贝叶斯滤波器——更新步骤推导])[
+  当新的测量值$z_k$到来时，利用贝叶斯定理进行更新：
+  $
+    p(x_k|z_(1:k)) prop p(z_k|x_k)p(x_k|z_(1:k-1))
+  $
+  - 似然 $times$ 先验 -> 后验
+  - 测量带来的收缩效应 -> 不确定性降低
+
+  #tip(title: [核心信息])[
+    预测（predict）通过运动模型推进时间，更新（update）则利用测量缩小分布范围。这两个阶段的分离并非选择，而是贝叶斯定理的必然结果。
+  ]
+]
+
+#figure(
+  image("bayesfilter.pdf"),
+  caption: [贝叶斯滤波器],
+)
+
+#danger(title: [贝叶斯滤波器虽然完美，但无法求解])[
+  - 预测的积分$integral dots.c upright(d)x_(k-1)$——通常没有闭式解
+  - 更新的归一化$p(z)$——通常没有闭式解
+  - 若状态连续且分布形状任意，理论上可行，但计算机无法求解
+
+  突破口：
+
+  - 如果将分布假设为高斯分布，则两个阶段均可得到闭式解
+  - 这就是卡尔曼滤波器
+]
+
+#tip(title: [卡尔曼滤波器是贝叶斯滤波器+高斯分布假设])[
+  - 先验和后验均以高斯分布表示
+  - 运动模型和测量模型也假设为线性加高斯噪声
+  - 那么两个步骤就简化为均值和协方差的更新
+  - 仅需五行公式即可完成推导
+]
+
+#figure(
+  image("bayestokf.pdf"),
+  caption: [从贝叶斯滤波器到卡尔曼滤波器]
+)
+
+
 
 #part("Point-LIO算法")
 
