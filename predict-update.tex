@@ -1,0 +1,78 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{ctex}
+
+\usetikzlibrary{arrows.meta}
+
+% 矩阵/向量粗体记号
+\newcommand{\bF}{\bm{F}}
+\newcommand{\bP}{\bm{P}}
+\newcommand{\bQ}{\bm{Q}}
+\newcommand{\bK}{\bm{K}}
+\newcommand{\bH}{\bm{H}}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  scale=0.95,
+  transform shape,
+  font=\footnotesize,
+  update arrow/.style={red, thick, -Stealth}
+]
+  % 坐标轴
+  \draw[->] (-0.3,0) -- (10.6,0) node[right]{$t$};
+  \draw[->] (0,-0.2) -- (0,3.2)
+    node[above]{$\sigma^2(t)$ \scriptsize（方差）};
+
+  % 稳态参考线
+  \draw[gray!50, dashed, thick] (0,1.3) -- (10.4,1.3)
+    node[right, gray, font=\scriptsize]{$\sigma^2_\infty$（稳态）};
+
+  % 锯齿形曲线：初期方差较大，随后逐渐收敛到稳态
+
+  % 第 1 个周期：预测使方差增长，更新使方差下降
+  \draw[blue, thick] (0, 0.3) -- (2.0, 1.6);
+  \draw[update arrow] (2.0, 1.6) -- (2.0, 0.7);
+  \fill[red] (2.0, 1.6) circle (1.6pt);
+
+  % 第 2 个周期
+  \draw[blue, thick] (2.0, 0.7) -- (4.0, 1.85);
+  \draw[update arrow] (4.0, 1.85) -- (4.0, 1.05);
+  \fill[red] (4.0, 1.85) circle (1.6pt);
+
+  % 第 3 个周期
+  \draw[blue, thick] (4.0, 1.05) -- (6.0, 1.85);
+  \draw[update arrow] (6.0, 1.85) -- (6.0, 1.20);
+  \fill[red] (6.0, 1.85) circle (1.6pt);
+
+  % 第 4 个周期：接近稳态
+  \draw[blue, thick] (6.0, 1.20) -- (8.0, 1.65);
+  \draw[update arrow] (8.0, 1.65) -- (8.0, 1.30);
+  \fill[red] (8.0, 1.65) circle (1.6pt);
+
+  % 第 5 个周期：稳态附近
+  \draw[blue, thick] (8.0, 1.30) -- (10.0, 1.55);
+  \draw[update arrow] (10.0, 1.55) -- (10.0, 1.32);
+  \fill[red] (10.0, 1.55) circle (1.6pt);
+
+  % 标签
+  \node[blue, anchor=south west, font=\scriptsize] at (1.0, 1.0)
+    {预测（$+\bF\bP\bF^\top + \bQ$）};
+
+  \node[red, anchor=west, font=\scriptsize] at (4.15, 1.45)
+    {更新（$-\bK\bH\bP$）};
+
+  % 过渡阶段 / 稳态阶段标注
+  \draw[<->, gray!70] (0.1, 2.7) --
+    node[above, font=\scriptsize]{过渡阶段：初期快速收缩}
+    (5.0, 2.7);
+
+  \draw[<->, gray!70] (5.2, 2.7) --
+    node[above, font=\scriptsize]{稳态：$P_\infty$}
+    (10.0, 2.7);
+
+\end{tikzpicture}
+
+\end{document}

@@ -389,9 +389,184 @@ $
 
 #figure(
   image("bayestokf.pdf"),
-  caption: [从贝叶斯滤波器到卡尔曼滤波器]
+  caption: [从贝叶斯滤波器到卡尔曼滤波器],
 )
 
+#tip(title: [思想实验——直线走廊+盲道砖])[
+  - 状态：$x$（直线上的位置）
+  - 运动模型：每迈一步，$x arrow x + 0.7 + w$, 其中：$w tilde cal(N)(0, 0.05^2)$
+  - 测量模型：在有盲道砖的精确1米位置处，$z = x + v$，其中：$v tilde cal(N)(0, 0.02^2)$
+  #linebreak()
+  - 预测：每走一步，$sigma$会*变大*
+  - 更新：一旦获得盲道砖测量，高斯分布相乘 -> $sigma$会*变小*
+  - 两种效果的平衡会形成*可持续的估计*
+]
+
+#tip(title: [更新——写成两个高斯分布的乘积])[
+  - 先验（预测结果）：在第100步为$cal(N)(x; 70, 0.25)$
+  - 测量（第100步的点）：$cal(N)(x; 100, 0.0004)$
+  #linebreak()
+  $
+    1/sigma^2 & = 1/0.25 + 1/0.0004 approx 2504 arrow.double sigma approx 0.02 \
+           mu & = (70/0.25 + 100/0.0004)/2504 approx 99.99
+  $
+  - 结果：方差几乎和测量的方差相等。
+  - 直觉：一次准确的测量几乎会覆盖先验信息。
+]
+
+#tip(title: [为什么我们非要用协方差矩阵])[
+  - 如果状态是单一变量，只需要方差即可
+  - 但如果状态是多维且相互关联的呢？
+  #linebreak()
+  例如：位置$x$和速度$v$的协方差矩阵如下：
+  $
+    bold(Sigma) = mat(sigma_x^2, rho sigma_x sigma_y; rho sigma_x sigma_v, sigma_v^2)
+  $
+  - $rho > 0$：当"位置信息更明确"时，速度估计也会随之收敛。
+  - 这种相互作用正是卡尔曼滤波的真正力量——对一个变量的测量能够缩小其它变量的不确定性
+  - IMU偏置估计能够自动完成的原因也是如此
+]
+
+#tip(title: [预测/更新重复——方差如何变化（锯齿形）])[
+  #figure(
+    image("predict-update.pdf"),
+    caption: [预测/更新],
+  )
+
+  - 蓝线：预测会增大方差：（$bold(P) mapsto bold(F P F^T) + bold(Q)$）
+  - 红色箭头：更新会减小方差（$bold(P) mapsto (bold(I) - bold(K H))bold(P)$）
+  - 锯齿波（sawtooth）：每个周期$"predict"arrow.t arrow "update"arrow.b$重复。
+  - 稳态（Steady-State）:在可观测系统中$bold(P) arrow bold(P)_infinity$收敛（DARE解）
+  - ESKF实际比例：预测为100-400Hz，GPS为1-10Hz，相机为10-30Hz。
+  - 更新频率越低，锯齿的振幅越大。
+]
+
+#tip(title: [似然与测量噪声])[
+  - 似然函数$p(bold(z)|bold(x))$——在某个状态时，出现某个测量的概率
+  - 测量噪声$bold(v) tilde cal(N)(0, bold(R))$——产生该概率的噪声
+  - 在高斯假设下，两者实际上是同一个对象的两种表达方式
+
+  #tip(title: [实用提醒])[
+    - 如果把$bold(R)$设置的太小（"我的传感器非常准确！"）->会把噪声*当成真相*，导致估计震荡
+    - 如果把$bold(R)$设置的太大->几乎忽略测量->实际上变成了航位推算（dead reckoning）
+  ]
+]
+
+#figure(
+  ```python
+  import numpy as np
+
+  def predict(mu, var, u, q):
+      # $x_k = x_(k-1) + u + w, w tilde cal(N)(0, q)$
+      return mu + u, var + q
+
+  def update(mu, var, z, r):
+      # $z = x + v, v tilde cal(N)(0, r)$
+      K = var / (var + r) # 卡尔曼增益（1D）
+      return mu + K * (z - mu), (1 - K) * var
+
+  mu, var = 0.0, 1.0
+  u, q, r = 0.7, 0.05 ** 2, 0.02 ** 2
+  for k in range(1, 101):
+      mu, var = predict(mu, var, u, q)
+      if k % 10 == 0: # 每隔10步测量一次
+          mu, var = update(mu, var, k * 1.0, r)
+  ```,
+  caption: [1D贝叶斯滤波器的实现],
+)
+
+- 预测：方差增大
+- 更新：方差减小
+- 改变测量周期（$k%20,k%50$）时，方差会如何变化呢？
+
+#danger(title: [本章核心内容])[
+  - 贝叶斯定理的一行公式中，预测/更新步骤必然随之而来
+  - 高斯乘积 = 精度加权平均 + 精度求和
+  - 将同一公式重新整理，即得到一维卡尔曼更新的标准形式
+  - 高斯分布是能够实现闭合形式的选择——非高斯分布则需使用粒子滤波
+  - 协方差中的非对角元素使得一个变量的测量能够缩小其他变量的范围
+]
+
+#chapter("SO(3)入门", image: image("orange2.jpg"), l: "so3")
+
+#figure(
+  image("rpy.pdf"),
+  caption: [旋转表达的三种选择],
+)
+
+- 任何表达方式都不会"没有代价的"达到完美——每种表达方式都有其优缺点
+- ESKF结合了四元数（实现）和$"SO"(3)$几何学（理论）
+
+#danger(title: [欧拉角的致命缺陷——万向锁])[
+  当横滚角-俯仰角-偏航角（roll-pitch-yaw）表示中，当俯仰角=90°时：
+
+  - $x$轴旋转和$z$轴旋转指向同一个方向->自由度丧失
+  - 求导后行列式=0->雅可比矩阵奇异
+  - 卡尔曼滤波的$F$矩阵和$H$矩阵数值上会发散
+  - 实际案例：阿波罗11号陀螺仪锁定、飞机姿态估计错误
+
+  所以在需要以可微分形式处理旋转的估计问题中，欧拉角从根本上无法使用。
+]
+
+#tip(title: [四元数——虽然更优，但存在约束条件])[
+  $
+      bold(upright(q)) & = (q_w, q_x, q_y, q_z) \
+    |bold(upright(q))| & = 1 space space "（单位四元数）"
+  $
+
+  #danger(title: [符号注意])[
+    - 这里使用汉密尔顿管理$(q_w, q_x, q_y, q_z)$——和Eigen、GTSAM、ROS tf2一致。
+    - OpenVINS使用JPL管理$(q_x,q_y,q_z,q_w)$——使用代码时需要转换
+  ]
+
+  #danger(title: [卡尔曼滤波中的四元数问题])[
+    - 卡尔曼滤波将状态视为向量处理
+    - 以$hat(bold(upright(q))) + K v$进行更新->$|q|!=1$的可能性存在
+    - 若仅做简单的重新归一化，协方差会指向错误的方向。
+  ]
+]
+
+#tip(title: [$"SO"(3)$——三维旋转的集合本身])[
+  $
+    "SO"(3) = {bold(R) in RR^(3 times 3) | bold(R)^T bold(R) = bold(I), "det"(bold(R)) = +1}
+  $
+
+  - 由6个约束条件构成$R$内的三维流形（manifold）
+  - 该曲面上的每个点 = 一个三维旋转
+  - 两个旋转的复合：矩阵乘法$bold(R)_1 bold(R)_2$（封闭性）
+  - 单位元：$bold(I)$
+  - 逆元：$bold(R)^T$
+  - 群（group）+可微分的曲面->李群（Lie Group）
+]
+
+#tip(title: [流形直觉——从球面角度考虑])[
+  考虑地球表面：
+  - 整体空间：$RR^3$（三维）
+  - 地球表面：嵌入$RR^3$中的二维面$=S^2$
+  - 在某一点上的极小移动，感觉就像是在平面上进行
+  - 那个"局部平面" = 切空间
+
+  $"SO"(3)$也是如此：
+  - $RR^9$中的3D曲面
+  - 一个旋转$bold(R)$附近的小变化->切空间$tilde.equiv RR^3$
+
+  #figure(
+    image("manifold.pdf"),
+    caption: [流形],
+  )
+]
+
+#tip(title: [李代数$frak("so")(3)$——单位元处的其空间])[
+  $bold(R)=bold(I)$附近的$"SO"(3)$切空间称为李代数：
+  $
+    frak("so")(3) = {bold(Phi) in RR^(3 times 3) | bold(Phi) + bold(Phi)^T = bold(0)} space space "（反对称矩阵）"
+  $
+
+  反对称矩阵仅包含三个自由参数：
+  $
+    [bold(phi.alt)]_times = mat(0, -phi.alt_z, phi.alt_y; phi.alt_z, 0, -phi.alt_x; -phi.alt_y, phi.alt_x, 0), space space bold(phi.alt) = (phi.alt_x, phi.alt_y, phi.alt_z)^T in RR^3
+  $
+]
 
 
 #part("Point-LIO算法")

@@ -1,0 +1,63 @@
+\documentclass[tikz,border=8pt]{standalone}
+
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{ctex}
+\usepackage{amssymb}
+
+\usetikzlibrary{arrows.meta, calc}
+
+\begin{document}
+
+\begin{tikzpicture}[scale=1.0, transform shape, font=\scriptsize]
+  % --- Sphere ---
+  \shade[ball color=blue!20] (0,0) circle (1.5cm);
+
+  % equator (back half dashed, front half solid for 3D feel)
+  \draw[blue!40!black, dashed, thin] (-1.5,0) arc (180:360:1.5cm and 0.35cm);
+  \draw[blue!40!black, thin]         (-1.5,0) arc (180:0:1.5cm and 0.35cm);
+
+  % outline
+  \draw[blue!40!black, thin] (0,0) circle (1.5cm);
+
+  % --- Tangent point R ---
+  \coordinate (R) at (0.95, 1.16);
+  \fill[black] (R) circle (1.6pt);
+  \node[anchor=south west, font=\scriptsize] at ($(R)+(0.05,0.05)$) {$\bm{R}$};
+
+  % --- Tangent plane ---
+  \begin{scope}[shift={(R)}, rotate=50]
+    % parallelogram tangent plane
+    \fill[red!10, opacity=0.6]
+      (-1.0,-0.5) -- (1.0,-0.35) -- (1.1,0.45) -- (-0.9,0.30) -- cycle;
+
+    \draw[red!70!black, thick]
+      (-1.0,-0.5) -- (1.0,-0.35) -- (1.1,0.45) -- (-0.9,0.30) -- cycle;
+
+    % delta phi vector in tangent plane
+    \draw[-Stealth, red, very thick] (0,0) -- (0.85, 0.18)
+      node[anchor=south west, font=\scriptsize, red] {$\delta\bm{\phi}$};
+
+    % small grid in plane
+    \draw[red!40, thin] (-0.5, -0.40) -- (-0.4, 0.32);
+    \draw[red!40, thin] ( 0.0, -0.43) -- ( 0.1, 0.36);
+    \draw[red!40, thin] ( 0.5, -0.40) -- ( 0.6, 0.41);
+    \draw[red!40, thin] (-0.85, -0.10) -- (1.05, 0.05);
+  \end{scope}
+
+  \node[red!70!black, font=\scriptsize, anchor=west]
+    at ($(R)+(0.85,-0.50)$) {切空间 $\cong \mathbb{R}^3$};
+
+  % --- Exp map curve ---
+  \draw[-Stealth, blue!60!black, thick, densely dotted]
+    (R) .. controls ($(R)+(0.55,-0.05)$) and (1.65,0.85) .. (1.55, 0.55);
+
+  \node[blue!60!black, font=\scriptsize, anchor=north west]
+    at (1.40, 0.55) {$\bm{R}\mathrm{Exp}(\delta\bm{\phi})$};
+
+  \node[blue!60!black, font=\scriptsize, anchor=south]
+    at (1.55, 1.05) {\itshape Exp};
+
+\end{tikzpicture}
+
+\end{document}

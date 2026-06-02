@@ -1,0 +1,38 @@
+\documentclass[tikz,border=8pt]{standalone}
+\usepackage{amssymb}
+
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{ctex}
+
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  box/.style={
+    draw,
+    rounded corners,
+    minimum width=3.3cm,
+    minimum height=1.8cm,
+    align=center,
+    font=\footnotesize
+  },
+  arr/.style={-Stealth, thick}
+]
+  \node[box, fill=red!10] (euler) at (0,0)
+    {\textbf{欧拉角}\\$(r,p,y)$，3 个参数\\万向节锁！};
+
+  \node[box, fill=yellow!15] (quat) at (4.4,0)
+    {\textbf{四元数}\\$\mathbf{q}=(q_w,q_x,q_y,q_z)$\\4 个参数，$|\mathbf{q}|=1$};
+
+  \node[box, fill=green!12] (SO3) at (8.8,0)
+    {\textbf{SO(3)}\\$\bm{R}\in\mathbb{R}^{3\times3}$\\9 个参数，6 个约束};
+
+  \draw[arr] (euler.east) -- node[above, font=\scriptsize]{消除奇异性} (quat.west);
+
+  \draw[arr] (quat.east) -- node[above, font=\scriptsize]{几何意义清晰} (SO3.west);
+
+\end{tikzpicture}
+
+\end{document}
